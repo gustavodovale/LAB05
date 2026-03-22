@@ -1,0 +1,34 @@
+# Laboratório Técnico 05: Treinamento Fim-a-Fim do Transformer
+
+## Sobre o Laboratorio 05
+Este laboratório encerra a Unidade I. O objetivo é instanciar a arquitetura Transformer construída "do zero" nos laboratórios anteriores e conectá-la a um dataset real utilizando a biblioteca do Hugging Face. O foco principal não é criar um tradutor perfeito e fluente, mas sim implementar o ciclo completo de treinamento (Forward, Loss, Backward e Step) utilizando PyTorch. A meta é comprovar a integridade estrutural do modelo realizando um teste de overfitting em um subconjunto reduzido de dados, provando que a arquitetura consegue aprender e que a função de perda (Cross-Entropy) converge adequadamente.
+
+## Tecnologias e Bibliotecas
+* **Python 3.x**
+* **PyTorch (`torch`):** Essencial nesta etapa para a utilização do motor Autograd (cálculo automático de gradientes) e otimização.
+* **Hugging Face (`datasets` e `transformers`):** Utilizados estritamente para a aquisição do corpus de texto (`multi30k` ou `opus_books`) e para a tokenização pré-treinada básica (ex: `bert-base-multilingual-cased`), permitindo o foco na engenharia da rede neural.
+
+## Opcional: Criar um ambiente virtual (Melhor Prática)
+Para isolar as dependências do projeto, é recomendado criar um ambiente virtual antes de realizar as instalações. Digite no terminal:
+```bash
+python -m venv .venv
+```
+
+## Instalar as dependências
+Com o ambiente preparado, instale os pacotes (torch, datasets, transformers, numpy) necessários rodando o arquivo de requisitos no terminal:
+```bash
+pip install -r requirements.txt
+```
+
+## Executar o script do laboratorio
+Para rodar o laço de treinamento e o teste de inferência final, execute o arquivo principal no terminal:
+```bash
+python main.py
+```
+
+## Sobre o uso de IA
+Partes geradas/complementadas com IA, revisadas por Gustavo Araújo do Vale.
+
+O uso de Inteligência Artificial neste laboratório foi utilizado como ferramenta de apoio para brainstorming, correções de sintaxe na transição do código de NumPy para PyTorch e geração de templates básicos para a manipulação burocrática dos datasets e da tokenização (Tarefas 1 e 2). A lógica matemática da montagem do modelo, a interação das classes construídas nos laboratórios anteriores e o fluxo do laço de treinamento (Forward e Backward) foram compreendidos, estruturados e documentados integralmente por mim, em conformidade com as regras de integridade acadêmica estipuladas.
+
+

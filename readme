@@ -32,3 +32,30 @@ Partes geradas/complementadas com IA, revisadas por Gustavo Araújo do Vale.
 O uso de Inteligência Artificial neste laboratório foi utilizado como ferramenta de apoio para brainstorming, correções de sintaxe na transição do código de NumPy para PyTorch e geração de templates básicos para a manipulação burocrática dos datasets e da tokenização (Tarefas 1 e 2). A lógica matemática da montagem do modelo, a interação das classes construídas nos laboratórios anteriores e o fluxo do laço de treinamento (Forward e Backward) foram compreendidos, estruturados e documentados integralmente por mim, em conformidade com as regras de integridade acadêmica estipuladas.
 
 
+## Resultado do Experimento do Aluno Gustavo Araújo do Vale (Lab 05)
+
+**Objetivo:** Validar o fluxo de tensores no Transformer (PyTorch) e comprovar a redução da função de perda (Loss) durante o treinamento, além de testar o laço auto-regressivo de inferência.
+
+**Parâmetros Utilizados:**
+* **Dataset:** `opus_books` (en-pt) via Hugging Face.
+* **Tamanho do Treino:** 1.000 frases (fatiadas em lotes).
+* **Dimensões do Modelo:** `d_model = 128`.
+* **Otimizador:** Adam (`lr = 0.001`).
+* **Função de Perda:** CrossEntropyLoss (`ignore_index = 0` para padding).
+* **Batch Size:** 32.
+* **Épocas:** 5.
+
+**Resultados do Treinamento:**
+A arquitetura se provou funcional e o gradiente fluiu corretamente. O Erro Médio (Loss) teve uma queda consistente ao longo das 5 épocas:
+* Época 1/5 | Loss (Erro Médio): 9.3835 - Loss Inicial
+* Época 2/5 | Loss (Erro Médio): 6.5950
+* Época 3/5 | Loss (Erro Médio): 6.4015
+* Época 4/5 | Loss (Erro Médio): 6.3339
+* Época 5/5 | Loss (Erro Médio): 6.2893	- Loss Final
+
+**Teste de Overfitting (A Prova de Fogo):**
+* **Entrada (Inglês):** "ALICE'S ADVENTURES IN WONDERLAND"
+* **Saída Gerada:** `................................`
+
+**Análise do Resultado:**
+O modelo executou o laço auto-regressivo com sucesso, provando que a lógica de retroalimentação do Decoder funciona. No entanto, por ter sido treinado por apenas 5 épocas, a rede não teve tempo de associar o vocabulário. Diante da alta incerteza matemática, o modelo apelou para a estatística básica: escolheu o token de pontuação mais comum (o ponto final) para minimizar o erro. Ao retroalimentar esse ponto final no próprio Decoder, ele entrou em um *feedback loop* (gagueira), repetindo o padrão até o limite máximo da sequência.

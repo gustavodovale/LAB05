@@ -32,7 +32,9 @@ Partes geradas/complementadas com IA, revisadas por Gustavo Araújo do Vale.
 O uso de Inteligência Artificial neste laboratório foi utilizado como ferramenta de apoio para brainstorming, correções de sintaxe na transição do código de NumPy para PyTorch e geração de templates básicos para a manipulação burocrática dos datasets e da tokenização (Tarefas 1 e 2). A lógica matemática da montagem do modelo, a interação das classes construídas nos laboratórios anteriores e o fluxo do laço de treinamento (Forward e Backward) foram compreendidos, estruturados e documentados integralmente por mim, em conformidade com as regras de integridade acadêmica estipuladas.
 
 
-## Resultado do Experimento do Aluno Gustavo Araújo do Vale (Lab 05)
+## Resultados dos Experimentos do Aluno Gustavo Araújo do Vale (Lab 05)
+
+### Experimento 1: A Prova de Fogo Final
 
 **Objetivo:** Validar o fluxo de tensores no Transformer (PyTorch) e comprovar a redução da função de perda (Loss) durante o treinamento, além de testar o laço auto-regressivo de inferência.
 
@@ -47,11 +49,8 @@ O uso de Inteligência Artificial neste laboratório foi utilizado como ferramen
 
 **Resultados do Treinamento:**
 A arquitetura se provou funcional e o gradiente fluiu corretamente. O Erro Médio (Loss) teve uma queda consistente ao longo das 5 épocas:
-* Época 1/5 | Loss (Erro Médio): 9.3835 - Loss Inicial
-* Época 2/5 | Loss (Erro Médio): 6.5950
-* Época 3/5 | Loss (Erro Médio): 6.4015
-* Época 4/5 | Loss (Erro Médio): 6.3339
-* Época 5/5 | Loss (Erro Médio): 6.2893	- Loss Final
+* Loss Inicial (Época 1): ~9.38
+* Loss Final (Época 5): ~6.28
 
 **Teste de Overfitting (A Prova de Fogo):**
 * **Entrada (Inglês):** "ALICE'S ADVENTURES IN WONDERLAND"
@@ -59,3 +58,29 @@ A arquitetura se provou funcional e o gradiente fluiu corretamente. O Erro Médi
 
 **Análise do Resultado:**
 O modelo executou o laço auto-regressivo com sucesso, provando que a lógica de retroalimentação do Decoder funciona. No entanto, por ter sido treinado por apenas 5 épocas, a rede não teve tempo de associar o vocabulário. Diante da alta incerteza matemática, o modelo apelou para a estatística básica: escolheu o token de pontuação mais comum (o ponto final) para minimizar o erro. Ao retroalimentar esse ponto final no próprio Decoder, ele entrou em um *feedback loop* (gagueira), repetindo o padrão até o limite máximo da sequência.
+
+
+### Experimento 2: A Prova de Fogo Final
+
+**Objetivo:** Solucionar os problemas de "gagueira" (loop de repetição) e "amnésia" do modelo adicionando as peças finais da arquitetura Transformer original: *Positional Encoding*, *Feed-Forward Networks (FFN)* e *Conexões Residuais (Skip Connections)*. Forçar a memorização absoluta de uma única amostra.
+
+**Parâmetros Utilizados:**
+* **Amostras:** Apenas 1 frase (Para isolar o aprendizado).
+* **Dimensões do Modelo:** `d_model = 128`
+* **Otimizador:** Adam (`lr = 0.001`)
+* **Batch Size:** 1
+* **Épocas:** 200
+* **Arquitetura:** Self-Attention + Cross-Attention + Positional Encoding + FFN + Residual Connections.
+
+**Resultados do Treinamento:**
+A adição das conexões residuais e da rede feed-forward curou a amnésia matemática do modelo. A queda da função de perda foi absoluta:
+* Loss Inicial (Época 1): ~12.3959
+* Loss Final (Época 200): 0.0000
+
+**Teste de Inferência Auto-Regressiva:**
+* **Entrada (Inglês):** "ALICE'S ADVENTURES IN WONDERLAND"
+* **Passo a Passo do Modelo:** `Alice` -> `no` -> `País` -> `das` -> `Mara` -> `##vil` -> `##has` -> `[SEP]`
+* **Tradução Final Gerada:** `Alice no País das Maravilhas`
+
+**Análise do Resultado:**
+O experimento foi um sucesso total. Ao zerar a função de perda (`0.0000`), o modelo alcançou confiança matemática absoluta. O *Positional Encoding* permitiu que o modelo entendesse a ordem das palavras, enquanto a *FFN* forneceu não-linearidade (lógica). Por fim, as *Conexões Residuais* garantiram que a identidade original do token não fosse destruída durante os cálculos de atenção. O tokenizador do BERT agiu conforme o esperado, dividindo palavras desconhecidas em sub-tokens (`Mara` + `##vil` + `##has`) e o laço auto-regressivo encerrou a geração perfeitamente ao prever o token de parada `[SEP]`.

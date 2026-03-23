@@ -118,140 +118,119 @@ def tokenizar_dataset(dataset_filtrado):
 # Modificação do Transformer do LAB04 de Numpy para Torch
 
 class TransformerSimples(nn.Module):
-    def __init__(self, tamanho_vocab, d_model=128):
+    def __init__(self, tamanho_vocab, d_model=128, max_len=32):
         super().__init__()
-        # Converte IDs em Vetores (Embeddings)
         self.embedding = nn.Embedding(tamanho_vocab, d_model)
+        self.pos_embedding = nn.Embedding(max_len, d_model)
         
-        # Pesos do Encoder (W_q, W_k, W_v do Lab 04)
         self.W_q_enc = nn.Linear(d_model, d_model)
         self.W_k_enc = nn.Linear(d_model, d_model)
         self.W_v_enc = nn.Linear(d_model, d_model)
         
-        # Pesos do Decoder (Masked Attention)
         self.W_q_dec1 = nn.Linear(d_model, d_model)
         self.W_k_dec1 = nn.Linear(d_model, d_model)
         self.W_v_dec1 = nn.Linear(d_model, d_model)
         
-        # Pesos da Ponte (Cross-Attention)
         self.W_q_dec2 = nn.Linear(d_model, d_model)
         self.W_k_dec2 = nn.Linear(d_model, d_model)
         self.W_v_dec2 = nn.Linear(d_model, d_model)
         
-        # Transformação Final para o tamanho do vocabulário
+        self.ffn1 = nn.Linear(d_model, d_model * 2)
+        self.ffn2 = nn.Linear(d_model * 2, d_model)
+        
         self.transformacaoFinal = nn.Linear(d_model, tamanho_vocab)
         self.d_model = d_model
 
     def scaled_dot_product_attention(self, Q, K, V, mask=None):
-        # Pega o tamanho da dimensão das chaves
         d_k = K.size(-1)
-
-         # Multiplica as Perguntas (Q) pelas Chaves (K) para ver quais palavras combinam mais
         scores = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(d_k, dtype=torch.float32))
-        
-         # Se tiver máscara (no Decoder), aplica ela escondendo as palavras futuras
         if mask is not None:
-            # Substitui o 0 da máscara por -inf
             scores = scores.masked_fill(mask == 0, float('-inf'))
-        
-        # Multiplica essas porcentagens pelos Valores (V) para criar o contexto final da palavra
         pesos = F.softmax(scores, dim=-1)
         return torch.matmul(pesos, V)
 
     def forward(self, x_enc, x_dec, mascara_causal):
-        # Converte as listas de números inteiros em tensores com dimensões
-        X = self.embedding(x_enc)
-        Y = self.embedding(x_dec)
+        seq_len_enc = x_enc.size(1)
+        seq_len_dec = x_dec.size(1)
+        posicoes_enc = torch.arange(0, seq_len_enc).unsqueeze(0)
+        posicoes_dec = torch.arange(0, seq_len_dec).unsqueeze(0)
         
-        # 2. Bloco do Encoder
-        Q_enc = self.W_q_enc(X) # Cria a Pergunta
-        K_enc = self.W_k_enc(X) # Cria a Chave
-        V_enc = self.W_v_enc(X) # Cria o Valor
-        Z = self.scaled_dot_product_attention(Q_enc, K_enc, V_enc) # Memória rica do Encoder
+        X = self.embedding(x_enc) + self.pos_embedding(posicoes_enc)
+        Y = self.embedding(x_dec) + self.pos_embedding(posicoes_dec)
         
-        # 3. BLoco Decoder Masked Self-Attention
+        # --- ENCODER ---
+        Q_enc = self.W_q_enc(X) 
+        K_enc = self.W_k_enc(X) 
+        V_enc = self.W_v_enc(X) 
+        # A MÁGICA 1: Somando X (Conexão Residual) para curar a amnésia!
+        Z = X + self.scaled_dot_product_attention(Q_enc, K_enc, V_enc) 
+        
+        # --- DECODER (Self-Attention) ---
         Q_dec1 = self.W_q_dec1(Y)
         K_dec1 = self.W_k_dec1(Y)
         V_dec1 = self.W_v_dec1(Y)
-        Y_masked = self.scaled_dot_product_attention(Q_dec1, K_dec1, V_dec1, mask=mascara_causal)
+        # A MÁGICA 2: Somando Y
+        Y_masked = Y + self.scaled_dot_product_attention(Q_dec1, K_dec1, V_dec1, mask=mascara_causal)
         
-        # 4. Bloco do Decoder Cross-Attention com Z do Encoder
+        # --- DECODER (Cross-Attention) ---
         Q_dec2 = self.W_q_dec2(Y_masked)
         K_dec2 = self.W_k_dec2(Z)
         V_dec2 = self.W_v_dec2(Z)
-
-        # Sem mascara 
-        Saida_Decoder = self.scaled_dot_product_attention(Q_dec2, K_dec2, V_dec2) 
+        # A MÁGICA 3: Somando Y_masked
+        Saida_Decoder = Y_masked + self.scaled_dot_product_attention(Q_dec2, K_dec2, V_dec2) 
         
-        # 5. Transformação Final
-        logits = self.transformacaoFinal(Saida_Decoder)
+        # Cérebro Lógico com Conexão Residual Final
+        saida_ffn = self.ffn2(F.relu(self.ffn1(Saida_Decoder)))
+        saida_final = Saida_Decoder + saida_ffn
+        
+        logits = self.transformacaoFinal(saida_final)
         return logits
-
 
 # Training Loop
 
 def treinar_modelo(matriz_encoder, matriz_decoder, tamanho_vocab):
-    print("\nIniciando a Tarefa 3: O Motor de Treinamento!\n")
+    print("\nIniciando a Tarefa 3: O Motor de Treinamento (Modo Memorização)!\n")
     
     modelo = TransformerSimples(tamanho_vocab, d_model=128)
     criterio_loss = nn.CrossEntropyLoss(ignore_index=0)
-    otimizador = optim.Adam(modelo.parameters(), lr=0.001)
+    # Aumentei o passo (lr) de leve para ele aprender mais rápido
+    otimizador = optim.Adam(modelo.parameters(), lr=0.001) 
     
-    # Vamos rodar poucas épocas (ex: 5) só para mostrar o Loss caindo
-    epocas = 5
-    batch_size = 32 # <-- A MÁGICA PARA NÃO TRAVAR A MEMÓRIA
+    epocas = 200
+    batch_size = 1 # Vamos passar 1 frase por vez
     
     for epoca in range(epocas):
-        # Zera o acumulador de erros toda vez que uma nova época (rodada de estudos) começa
         erro_total_epoca = 0 
         
-        # --- O LAÇO DOS MINI-BATCHES (A MÁGICA PARA NÃO TRAVAR O PC) ---
-        # Em vez de ler as 1000 frases de uma vez, pulamos de 32 em 32 (batch_size)
         for i in range(0, len(matriz_encoder), batch_size):
-            
-            # 1. Pega apenas a "fatia" atual de 32 frases do Encoder e do Decoder
             batch_enc = matriz_encoder[i:i+batch_size]
             batch_dec = matriz_decoder[i:i+batch_size]
             
-            # 2. Limpa o lixo de memória (gradientes) do cálculo da fatia anterior
             otimizador.zero_grad()
             
-            # 3. O Truque do Deslocamento (Teacher Forcing)
-            # Entrada do Decoder: Pega a frase inteira, mas joga fora a última palavra
             entrada_decoder = batch_dec[:, :-1] 
-            # Saída Esperada (Gabarito): Pega a frase inteira, mas joga fora a primeira palavra (<START>)
             alvo_esperado = batch_dec[:, 1:] 
             
-            # 4. Cria a máscara para o tamanho atual da frase (impede o modelo de olhar o futuro)
             seq_len = entrada_decoder.size(1)
             mascara_causal = torch.tril(torch.ones((seq_len, seq_len))).bool()
             
-            # 5. FORWARD PASS (O Chute): Passa as 32 frases pelo modelo para ver o que ele adivinha
             logits_previsoes = modelo(batch_enc, entrada_decoder, mascara_causal)
             
-            # 6. Achata a matriz 3D para uma fila única para o "professor" (Loss) conseguir corrigir
             previsoes_achatadas = logits_previsoes.reshape(-1, tamanho_vocab) 
             alvos_achatados = alvo_esperado.reshape(-1)
             
-            # 7. Calcula o Erro comparando as adivinhações com o gabarito
             erro = criterio_loss(previsoes_achatadas, alvos_achatados)
-            
-            # 8. BACKWARD PASS: Calcula onde o modelo errou usando derivadas (A mágica do PyTorch)
             erro.backward()
-            
-            # 9. Atualiza as matrizes de peso para ele ficar mais inteligente na próxima rodada
             otimizador.step()
             
-            # 10. Guarda o erro dessa fatia para podermos calcular a média no final
             erro_total_epoca += erro.item()
             
-        # --- FIM DA ÉPOCA ---
-        # Calcula a média do erro pegando a soma total e dividindo pela quantidade de fatias que fizemos
         qtd_batches = len(matriz_encoder) / batch_size
         erro_medio = erro_total_epoca / qtd_batches
         
-        # Mostra na tela como o erro está caindo!
-        print(f"Época {epoca+1}/{epocas} | Loss (Erro Médio): {erro_medio:.4f}")
+        # Mostra o Loss caindo a cada 20 épocas para não poluir a tela
+        if (epoca + 1) % 20 == 0 or epoca == 0:
+            print(f"Época {epoca+1:03d}/{epocas} | Loss (Erro Médio): {erro_medio:.4f}")
         
     print("\nTreinamento concluído! O Erro (Loss) diminuiu!")
     return modelo
@@ -338,6 +317,27 @@ def traduzir_frase(modelo, tokenizador, frase_original, max_len=32):
     return traducao_final
 
 
+# #--- TESTANDO AS TAREFAS 1 2, 3, 4 JUNTAS ---
+# if __name__ == "__main__":
+
+#     meus_dados = carregar_dados_filtrado()
+#     matriz_x, matriz_y, meu_tokenizador = tokenizar_dataset(meus_dados)
+
+#     # 3. Pega o tamanho REAL do vocabulário do tokenizador do BERT
+#     tamanho_vocab_real = meu_tokenizador.vocab_size
+
+#     matriz_x_pequena = matriz_x[:5] # Pegar só 5 frases
+#     matriz_y_pequena = matriz_y[:5]
+
+#     #modelo_treinado = treinar_modelo(matriz_x, matriz_y, tamanho_vocab_real)
+#     modelo_treinado = treinar_modelo(matriz_x_pequena, matriz_y_pequena, tamanho_vocab_real)
+
+#     # 4. Overfitting Test
+#     # Pega a primeira frase que ele memorizou
+#     frase_teste = meus_dados[0]['translation']['en']
+#     traducao = traduzir_frase(modelo_treinado, meu_tokenizador, frase_teste)
+
+
 # --- TESTANDO AS TAREFAS 1 2, 3, 4 JUNTAS ---
 if __name__ == "__main__":
 
@@ -347,13 +347,16 @@ if __name__ == "__main__":
     # 3. Pega o tamanho REAL do vocabulário do tokenizador do BERT
     tamanho_vocab_real = meu_tokenizador.vocab_size
 
-    modelo_treinado = treinar_modelo(matriz_x, matriz_y, tamanho_vocab_real)
+    # --- ISOLANDO 1 ÚNICA FRASE PARA O TESTE ---
+    matriz_x_pequena = matriz_x[:1] # Pegar SÓ a frase 1
+    matriz_y_pequena = matriz_y[:1] # Pegar SÓ o gabarito 1
+
+    modelo_treinado = treinar_modelo(matriz_x_pequena, matriz_y_pequena, tamanho_vocab_real)
 
     # 4. Overfitting Test
-    # Pega a primeira frase que ele memorizou
+    # Pega a primeira frase que ele memorizou exaustivamente
     frase_teste = meus_dados[0]['translation']['en']
     traducao = traduzir_frase(modelo_treinado, meu_tokenizador, frase_teste)
-
 
 
 

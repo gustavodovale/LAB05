@@ -74,7 +74,7 @@ O modelo executou o laço auto-regressivo com sucesso, provando que a lógica de
 
 **Resultados do Treinamento:**
 A adição das conexões residuais e da rede feed-forward curou a amnésia matemática do modelo. A queda da função de perda foi absoluta:
-* Loss Inicial (Época 1): ~12.3959
+* Loss Inicial (Época 1): ~12.1941
 * Loss Final (Época 200): 0.0000
 
 **Teste de Inferência Auto-Regressiva:**
